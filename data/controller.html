@@ -1,0 +1,27 @@
+<button onclick="lightsOn()">ON</button>
+
+<button onclick="lightsOff()">OFF</button>
+
+<div id="prg_wrap" style="border: 0px solid; width: 100%;">
+    <div id="prg"
+         style="text-shadow: 2px 2px 3px black; padding: 5px 0; display: none; border: 1px solid #008aff; background: #002180; text-align: center; color: white;"></div>
+</div>
+<script>
+    function lightsOn() {
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", location.href, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify({
+            lightState: "on"
+        }));
+    }
+
+    function lightsOff() {
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", location.href, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify({
+            lightState: "off"
+        }));
+    }
+</script>
