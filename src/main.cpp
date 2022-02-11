@@ -5,13 +5,17 @@
 #include "Constants.h"
 #include "FirmwareDownloader.h"
 #include "AsyncJson.h"
+#include "StateManager.h"
+#include "devices/LightManager.h"
 #include <ESP8266mDNS.h>
 
+StateManager stateManager;
+std::shared_ptr<LightManager> lightManager;
 Scheduler userScheduler;
 AsyncWebServer server(80);
 painlessMesh mesh;
 FirmwareDownloader firmwareDownloader;
-bool lightState = false;
+//bool lightState = false;
 
 IPAddress myAPIP(0, 0, 0, 0);
 
@@ -30,9 +34,8 @@ void sendmsg() {
     } else if (mesh.isRoot()) {
         DynamicJsonDocument message(1024);
         taskSendmsg.setInterval(TASK_SECOND * 1);
-        message["lightState"] = lightState;
         String msg;
-        serializeJson(message, msg);
+        serializeJson(stateManager.serialize(), msg);
         mesh.sendBroadcast(msg);
         taskSendmsg.setInterval(random(TASK_SECOND * 1, TASK_SECOND * 5));
     }
@@ -42,7 +45,10 @@ void sendmsg() {
 void receivedCallback(uint32_t from, String &msg) {
     DynamicJsonDocument message(1024);
     deserializeJson(message, msg);
-    lightState = message["lightState"];
+    JsonArray devices = message.getMember("devices").as<JsonArray>();
+    for (auto device: devices) {
+        stateManager.processAction(Action::deserialize(&device));
+    }
     Serial.printf("Received from %u msg=%s\n", from, msg.c_str());
 }
 
@@ -87,6 +93,12 @@ void setup() {
     if (!SPIFFS.begin()) {
         Serial.println("SPIFFS INIT ERROR");
     }
+
+    lightManager = std::shared_ptr<LightManager>(new LightManager(LED_PIN));
+    lightManager->init();
+    stateManager.registerDeviceManager(lightManager);
+    Serial.println("Light manager initialized");
+
     firmwareDownloader.init();
 //    mesh.setDebugMsgTypes(
 //            ERROR | STARTUP | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE);
@@ -125,10 +137,10 @@ void setup() {
         if (request->hasArg("BROADCAST")) {
             String msg = request->arg("BROADCAST");
             if (msg == "on") {
-                lightState = true;
+                lightManager->turnOn();
             }
             if (msg == "off") {
-                lightState = false;
+                lightManager->turnOff();
             }
             sendmsg();
         }
@@ -152,16 +164,15 @@ void setup() {
                                                                                JsonObject jsonObj = json.as<JsonObject>();
                                                                                int statusCode = 400;
                                                                                if (jsonObj["lightState"] == "on") {
-                                                                                   lightState = true;
+                                                                                   lightManager->turnOn();
                                                                                    statusCode = 200;
                                                                                } else if (jsonObj["lightState"] ==
                                                                                           "off") {
-                                                                                   lightState = false;
+                                                                                   lightManager->turnOff();
                                                                                    statusCode = 200;
                                                                                }
                                                                                sendmsg();
                                                                                request->send(statusCode);
-                                                                               // ...
                                                                            });
     server.addHandler(handler);
     server.begin();
@@ -174,6 +185,6 @@ void setup() {
 
 void loop() {
     mesh.update();
-    MDNS.update();
-    if (!mesh.getNodeList(false).empty()) digitalWrite(LED_PIN, !lightState);
+//    MDNS.update();
+//    if (!mesh.getNodeList(false).empty()) digitalWrite(LED_PIN, !lightState);
 }
