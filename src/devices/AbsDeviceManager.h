@@ -16,23 +16,23 @@ public:
         return state;
     }
 
-    void setState(bool state) {
-        AbsDeviceManager::state = state;
+    void setState(Action::STATE s) {
+        AbsDeviceManager::state = s;
     }
 
     bool toggle() {
-        state = !state;
+        state == Action::ON ? state = Action::OFF : state = Action::ON;
         onToggle(state);
         return state;
     }
 
     void turnOn() {
-        state = true;
+        state = Action::ON;
         onTurnOn();
     }
 
     void turnOff() {
-        state = false;
+        state = Action::OFF;
         onTurnOff();
     }
 
@@ -58,7 +58,7 @@ private:
     std::function<void(void)> onTurnOn;
     std::function<void(void)> onTurnOff;
     std::function<void(bool)> onToggle;
-    bool state = false;
+    Action::STATE state = Action::STATE::OFF;
 };
 
 

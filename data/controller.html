@@ -1,27 +1,49 @@
-<button onclick="lightsOn()">ON</button>
+<div>
+    <button onclick="lightsOn('root')">ON</button>
+    <button onclick="lightsOff('root')">OFF</button>
+</div>
 
-<button onclick="lightsOff()">OFF</button>
+<div>
+    <label>Event 1</label>
+    <button onclick="lightsOn('event1')">ON</button>
+    <button onclick="lightsOff('event1')">OFF</button>
+</div>
+
+<div>
+    <label>Event 2</label>
+    <button onclick="lightsOn('event2')">ON</button>
+    <button onclick="lightsOff('event2')">OFF</button>
+</div>
+
+<div>
+    <label>Event 3</label>
+    <button onclick="lightsOn('event3')">ON</button>
+    <button onclick="lightsOff('event3')">OFF</button>
+</div>
+
 
 <div id="prg_wrap" style="border: 0px solid; width: 100%;">
     <div id="prg"
          style="text-shadow: 2px 2px 3px black; padding: 5px 0; display: none; border: 1px solid #008aff; background: #002180; text-align: center; color: white;"></div>
 </div>
 <script>
-    function lightsOn() {
+    function lightsOn(device) {
         var xhr = new XMLHttpRequest();
         xhr.open("POST", location.href, true);
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.send(JSON.stringify({
-            lightState: "on"
+            state: "on",
+            device: device
         }));
     }
 
-    function lightsOff() {
+    function lightsOff(device) {
         var xhr = new XMLHttpRequest();
         xhr.open("POST", location.href, true);
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.send(JSON.stringify({
-            lightState: "off"
+            state: "off",
+            device: device
         }));
     }
 </script>

@@ -3,52 +3,66 @@
 #include "ESPAsyncWebServer.h"
 #include <ESP8266WiFi.h>
 #include "Constants.h"
-#include "FirmwareDownloader.h"
-#include "AsyncJson.h"
 #include "StateManager.h"
 #include "devices/LightManager.h"
 #include <ESP8266mDNS.h>
+#include "Callbacks.h"
 
 StateManager stateManager;
-std::shared_ptr<LightManager> lightManager;
 Scheduler userScheduler;
 AsyncWebServer server(80);
 painlessMesh mesh;
-FirmwareDownloader firmwareDownloader;
-//bool lightState = false;
 
 IPAddress myAPIP(0, 0, 0, 0);
 
-void sendmsg();
+void checkConnection();
 
-Task taskSendmsg(TASK_SECOND * 1, TASK_FOREVER, &sendmsg);
+Task taskSendmsg(TASK_SECOND * 1, TASK_FOREVER, &checkConnection);
 
-void sendmsg() {
+void checkConnection() {
+    // waiting for connection
     if (mesh.getNodeList(false).empty()) {
-        taskSendmsg.setInterval(250);
+        taskSendmsg.setInterval(TASK_MILLISECOND * 250);
         if (taskSendmsg.getRunCounter() & 1) {
-            digitalWrite(LED_PIN, HIGH);
+            digitalWrite(LED_BUILTIN, HIGH);
         } else {
-            digitalWrite(LED_PIN, LOW);
+            digitalWrite(LED_BUILTIN, LOW);
         }
-    } else if (mesh.isRoot()) {
+    } else {
+        // TODO: uncomment in prod
+//        digitalWrite(LED_BUILTIN, HIGH);
+    }
+    /*else if (mesh.isRoot()) {
         DynamicJsonDocument message(1024);
         taskSendmsg.setInterval(TASK_SECOND * 1);
         String msg;
         serializeJson(stateManager.serialize(), msg);
         mesh.sendBroadcast(msg);
         taskSendmsg.setInterval(random(TASK_SECOND * 1, TASK_SECOND * 5));
-    }
+        Serial.println(mesh.subConnectionJson(true));
+    }*/
 }
 
+#if defined SENSOR || ROOT
+
+void sendEvent(const Action &action) {
+    DynamicJsonDocument message(1024);
+    String msg;
+    serializeJson(action.serialize(), msg);
+    mesh.sendBroadcast(msg);
+}
+
+#endif
 
 void receivedCallback(uint32_t from, String &msg) {
     DynamicJsonDocument message(1024);
     deserializeJson(message, msg);
-    JsonArray devices = message.getMember("devices").as<JsonArray>();
-    for (auto device: devices) {
-        stateManager.processAction(Action::deserialize(&device));
-    }
+//    JsonArray devices = message.getMember("devices").as<JsonArray>();
+//    for (auto device: devices) {
+    Serial.printf("name: %s, state: %u\n", message.getMember("name").as<String>().c_str(),
+                  message.getMember("state").as<Action::STATE>());
+    stateManager.processAction(Action::deserialize(message));
+//    }
     Serial.printf("Received from %u msg=%s\n", from, msg.c_str());
 }
 
@@ -64,42 +78,31 @@ void nodeTimeAdjustedCallback(int32_t offset) {
     Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(), offset);
 }
 
-void
-handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-//    Serial.printf("UploadStart: %s\n", filename.c_str());
-//    if (!index) {
-//        File f = SPIFFS.open("example.txt", "w");
-//        Serial.println("Start downloading new firmware for nodes.");
-//    }
-//    mesh.initOTASend([&](painlessmesh::plugin::ota::DataRequest pkg, char *buffer) {
-//        memcpy(buffer, data, OTA_PART_SIZE * pkg.partNo);
-//        return min((unsigned) OTA_PART_SIZE, (unsigned) len - (OTA_PART_SIZE * pkg.partNo));
-//    }, OTA_PART_SIZE);
-//    MD5Builder md5;
-//    md5.begin();
-//    md5.add(data, len);
-//    md5.calculate();
-//
-//    mesh.offerOTA("node", "ESP8266", md5.toString(),
-//                  ceil(((float) len) / OTA_PART_SIZE), false);
-//
-//
-//    Serial.printf("UploadEnd: %s, %u B\n", filename.c_str(), index + len);
-}
-
 void setup() {
     Serial.begin(115200);
+    pinMode(LED_BUILTIN, OUTPUT);
     pinMode(LED_PIN, OUTPUT);
+
     if (!SPIFFS.begin()) {
         Serial.println("SPIFFS INIT ERROR");
     }
 
-    lightManager = std::shared_ptr<LightManager>(new LightManager(LED_PIN));
+#ifdef NODE1
+    auto lightManager = std::shared_ptr<LightManager>(new LightManager(LED_PIN, "light1"));
     lightManager->init();
-    stateManager.registerDeviceManager(lightManager);
+    stateManager.registerDeviceManager(lightManager, "event1");
+    stateManager.registerDeviceManager(lightManager, "event2");
+    stateManager.registerDeviceManager(lightManager, "root");
     Serial.println("Light manager initialized");
-
-    firmwareDownloader.init();
+#endif
+#ifdef NODE2
+    auto lightManager = std::shared_ptr<LightManager>(new LightManager(LED_PIN, "light2"));
+    lightManager->init();
+    stateManager.registerDeviceManager(lightManager, "event2");
+    stateManager.registerDeviceManager(lightManager, "event3");
+    stateManager.registerDeviceManager(lightManager, "root");
+    Serial.println("Light manager initialized");
+#endif
 //    mesh.setDebugMsgTypes(
 //            ERROR | STARTUP | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE);
     mesh.setDebugMsgTypes(ERROR | STARTUP | CONNECTION);
@@ -127,64 +130,41 @@ void setup() {
     mesh.setRoot(true);
 #endif
 
+#ifndef ROOT
     mesh.setContainsRoot(true);
+#endif
     userScheduler.addTask(taskSendmsg);
 
 #ifdef ROOT
-    server.on("/message", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(200, "text/html",
-                      "<form>Text to Broadcast<br><input type='text' name='BROADCAST'><br><br><input type='submit' value='Submit'></form>");
-        if (request->hasArg("BROADCAST")) {
-            String msg = request->arg("BROADCAST");
-            if (msg == "on") {
-                lightManager->turnOn();
-            }
-            if (msg == "off") {
-                lightManager->turnOff();
-            }
-            sendmsg();
-        }
-    });
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(SPIFFS, "/index.html", "text/html", false, NULL);
-    });
-    server.on("/controller", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(SPIFFS, "/controller.html", "text/html", false, NULL);
-    });
-    server.on("/", HTTP_POST, [&](AsyncWebServerRequest *request) {
-                  firmwareDownloader.handleResponse(request);
-              },
-              [&](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len,
-                  bool final) {
-                  firmwareDownloader.handleUpload(request, filename, index, data, len, final);
-              });
+    WebServerCallback::init(server);
     AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler("/controller",
                                                                            [&](AsyncWebServerRequest *request,
                                                                                JsonVariant &json) {
                                                                                JsonObject jsonObj = json.as<JsonObject>();
                                                                                int statusCode = 400;
-                                                                               if (jsonObj["lightState"] == "on") {
-                                                                                   lightManager->turnOn();
+                                                                               if (jsonObj["state"] == "on") {
+                                                                                   sendEvent(
+                                                                                           Action(jsonObj["device"],
+                                                                                                  Action::ON));
                                                                                    statusCode = 200;
-                                                                               } else if (jsonObj["lightState"] ==
-                                                                                          "off") {
-                                                                                   lightManager->turnOff();
+                                                                               } else if (jsonObj["state"] == "off") {
+                                                                                   sendEvent(
+                                                                                           Action(jsonObj["device"],
+                                                                                                  Action::OFF));
                                                                                    statusCode = 200;
                                                                                }
-                                                                               sendmsg();
+                                                                               checkConnection();
                                                                                request->send(statusCode);
                                                                            });
     server.addHandler(handler);
     server.begin();
 //    mesh.initOTAReceive("root");
 #else
-    mesh.initOTAReceive("node");
+    //    mesh.initOTAReceive("node");
 #endif
     taskSendmsg.enable();
 }
 
 void loop() {
     mesh.update();
-//    MDNS.update();
-//    if (!mesh.getNodeList(false).empty()) digitalWrite(LED_PIN, !lightState);
 }

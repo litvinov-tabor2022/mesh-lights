@@ -11,14 +11,14 @@
 
 class StateManager {
 public:
-    void registerDeviceManager(const std::shared_ptr<AbsDeviceManager> &deviceManager) {
-        devicesManagers.insert({deviceManager->key(), deviceManager});
+    void registerDeviceManager(const std::shared_ptr<AbsDeviceManager> &deviceManager, const String &key) {
+        devicesManagers.insert({key, deviceManager});
     }
 
-    bool processAction(const Action& action) {
+    bool processAction(const Action &action) {
         auto device = devicesManagers.find(action.device);
         if (device != devicesManagers.end()) {
-            if (action.state) {
+            if (action.state == Action::ON) {
                 devicesManagers.find(action.device)->second->turnOn();
             } else {
                 devicesManagers.find(action.device)->second->turnOff();
@@ -33,7 +33,7 @@ public:
     DynamicJsonDocument serialize() {
         DynamicJsonDocument doc(1024);
         JsonArray devices = doc.createNestedArray("devices");
-        for (const auto& device: devicesManagers) {
+        for (const auto &device: devicesManagers) {
             devices.add(device.second->getAction().serialize());
         }
         return doc;

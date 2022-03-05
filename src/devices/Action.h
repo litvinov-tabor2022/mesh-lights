@@ -1,17 +1,23 @@
 #ifndef ESPNOW_POC_ACTION_H
 #define ESPNOW_POC_ACTION_H
 
+#include <utility>
+
 #include "Arduino.h"
 #include "ArduinoJson.h"
 
 struct Action {
-    Action(const String &device, bool state) : device(device), state(state) {}
+    enum STATE {
+        ON, OFF
+    };
+
+    Action(String device, STATE state) : device(std::move(device)), state(state) {}
 
     String device;
-    bool state;
+    STATE state;
 
-    static Action deserialize(ArduinoJson6185_D1::VariantRef *json) {
-        return Action({json->getMember("name"), json->getMember("state").as<bool>()});
+    static Action deserialize(JsonDocument &json) {
+        return Action({json.getMember("name"), json.getMember("state").as<STATE>()});
     }
 
     [[nodiscard]] DynamicJsonDocument serialize() const {
