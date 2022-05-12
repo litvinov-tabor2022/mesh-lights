@@ -13,3 +13,6 @@ behavior implies that the *root* node must be always in the mesh network, otherw
 
 ## Usage
 
+1. upload slave `pio run -t upload -e 32node2`
+2. upload root `pio run -t upload -e 32root`
+

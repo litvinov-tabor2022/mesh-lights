@@ -4,6 +4,7 @@
 #include <memory>
 #include <utility>
 #include "AbsDeviceManager.h"
+#include <TaskScheduler.h>
 
 class LightManager : public AbsDeviceManager {
 public:
@@ -24,11 +25,11 @@ public:
         });
         this->setOnTurnOnCallback([this]() {
             Serial.println("Light is ON");
+            lightSince = millis();
             digitalWrite(outputPin, HIGH);
         });
         this->setOnTurnOffCallback([this]() {
             Serial.println("Light is OFF");
-            digitalWrite(outputPin, LOW);
         });
     }
 
@@ -36,7 +37,14 @@ public:
         return keyString;
     }
 
+    void loop() const {
+        if (millis() - lightSince > LIGHT_DELAY) {
+            digitalWrite(outputPin, LOW);
+        }
+    }
+
 private:
+    unsigned long lightSince = 0;
     int outputPin;
     String keyString;
 };

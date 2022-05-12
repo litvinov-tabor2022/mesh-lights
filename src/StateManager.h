@@ -1,9 +1,9 @@
 #ifndef ESPNOW_POC_STATEMANAGER_H
 #define ESPNOW_POC_STATEMANAGER_H
 
-
 #include <map>
 #include <memory>
+#include <utility>
 #include "Arduino.h"
 #include "devices/AbsDeviceManager.h"
 #include "ArduinoJson.h"
@@ -11,6 +11,8 @@
 
 class StateManager {
 public:
+    explicit StateManager(std::string deviceName) : deviceName(std::move(deviceName)) {}
+
     void registerDeviceManager(const std::shared_ptr<AbsDeviceManager> &deviceManager, const String &key) {
         devicesManagers.insert({key, deviceManager});
     }
@@ -32,6 +34,7 @@ public:
 
     DynamicJsonDocument serialize() {
         DynamicJsonDocument doc(1024);
+        doc["name"] = deviceName;
         JsonArray devices = doc.createNestedArray("devices");
         for (const auto &device: devicesManagers) {
             devices.add(device.second->getAction().serialize());
@@ -41,6 +44,7 @@ public:
 
 private:
     std::map<String, std::shared_ptr<AbsDeviceManager>> devicesManagers;
+    std::string deviceName;
 };
 
 
