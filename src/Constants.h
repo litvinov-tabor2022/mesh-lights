@@ -1,7 +1,8 @@
 #ifndef ESPNOW_POC_CONSTANTS_H
 #define ESPNOW_POC_CONSTANTS_H
 
-//#include "Arduino.h"
+
+static const uint8_t BROADCAST_ADDRESS[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 #define   MESH_PREFIX           "lights"
 #define   MESH_PASSWORD         "mesh_password"

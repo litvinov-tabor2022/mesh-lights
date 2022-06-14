@@ -6,6 +6,8 @@
 #include "AbsDeviceManager.h"
 #include <TaskScheduler.h>
 
+#define LIGHT_DELAY 1000
+
 class LightManager : public AbsDeviceManager {
 public:
     explicit LightManager(int outputPin) : outputPin(outputPin) {}
