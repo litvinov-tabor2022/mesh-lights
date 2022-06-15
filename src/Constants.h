@@ -1,24 +1,20 @@
-#ifndef ESPNOW_POC_CONSTANTS_H
-#define ESPNOW_POC_CONSTANTS_H
+#ifndef MESH_LIGHTS_CONSTANTS_H
+#define MESH_LIGHTS_CONSTANTS_H
 
-//#include "Arduino.h"
+#define LED_PIN                 27          // depends on device
+#define MOTION_SENSOR_PIN       25          // depends on device
+#define LIGHT_KEY               "LIGHT2"    // depends on device
+#define MOTION_KEY              "MOTION2"    // depends on device
 
-#define   MESH_PREFIX           "lights"
-#define   MESH_PASSWORD         "mesh_password"
-#define   MESH_PORT             5555
-#define   OTA_PART_SIZE         1024
+#define BUTTON_PIN              0
 
-#define   LED_PIN               LED_BUILTIN
+#define MESH_PREFIX             "lights"
+#define MESH_PASSWORD           "mesh_password"
+#define MESH_PORT               5555
 
-//#define   STATION_SSID     "LightsEntrypoint"
-//#define   STATION_PASSWORD "1234567890"
+#define BROADCAST_LIGHT_KEY     "BLIGHT"
 
-// ROOT NODE WILL BE CONNECTED TO THIS NETWORK
-#define   STATION_SSID          "***REMOVED***"
-#define   STATION_PASSWORD      "***REMOVED***"
-#define   HOSTNAME              "root_node"
+#define NFC_PIN_SS 32
+#define NFC_PIN_RST 25
 
-#define FIRMWARE_FILENAME       "node.bin"
-#define MD5_FIRMWARE_FILENAME   "node.md5"
-
-#endif //ESPNOW_POC_CONSTANTS_H
+#endif //MESH_LIGHTS_CONSTANTS_H

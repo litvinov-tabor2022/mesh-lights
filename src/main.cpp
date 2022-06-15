@@ -2,54 +2,37 @@
 #include <painlessMesh.h>
 #include "Constants.h"
 #include "StateManager.h"
-#include "devices/LightManager.h"
+
+#ifdef ROOT
+
+#include "nodes/RootNode.h"
+
+#else
+#include "nodes/SlaveNode.h"
+#endif
 
 #ifndef DEVICE_NAME
 #define DEVICE_NAME "UNKNOWN"
 #endif
 
+Node *node;
 StateManager stateManager(DEVICE_NAME);
 Scheduler userScheduler; // to control your personal task
 painlessMesh mesh;
-std::shared_ptr<LightManager> lightManager;
-bool prevState = false;
-
-// User stub
-void sendMessage(); // Prototype so PlatformIO doesn't complain
-
-Task taskSendMessage(TASK_SECOND * 1, TASK_FOREVER, &sendMessage);
-
-void sendEvent(const Action &action) {
-    DynamicJsonDocument message(1024);
-    String msg;
-    serializeJson(action.serialize(), msg);
-    stateManager.processAction(action);
-    mesh.sendBroadcast(msg);
-}
-
-void sendMessage() {
-    Serial.println("Sending event");
-    prevState = !prevState;
-    sendEvent(Action("event2", prevState ? Action::ON : Action::OFF));
-    taskSendMessage.setInterval(random(TASK_SECOND * 1, TASK_SECOND * 5));
-}
 
 // Needed for painless library
 void receivedCallback(uint32_t from, String &msg) {
-    Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());
     DynamicJsonDocument message(1024);
     deserializeJson(message, msg);
-//    JsonArray devices = message.getMember("devices").as<JsonArray>();
-//    for (auto device: devices) {
-    Serial.printf("name: %s, state: %u\n", message.getMember("name").as<String>().c_str(),
-                  message.getMember("state").as<Action::STATE>());
+    Serial.printf("Received from %u, action name: %s, state: %u, timeout %lu\n", from,
+                  message.getMember("name").as<String>().c_str(),
+                  message.getMember("state").as<Action::STATE>(),
+                  message.getMember("timeout").as<unsigned long>());
     stateManager.processAction(Action::deserialize(message));
-//    }
-    Serial.printf("Received from %u msg=%s\n", from, msg.c_str());
 }
 
 void newConnectionCallback(uint32_t nodeId) {
-    Serial.printf("--> startHere: New Connection, nodeId = %u\n", nodeId);
+    Serial.printf("--> New Connection, nodeId = %u\n", nodeId);
 }
 
 void changedConnectionCallback() {
@@ -63,24 +46,25 @@ void nodeTimeAdjustedCallback(int32_t offset) {
 void setup() {
     Serial.begin(115200);
 
-    mesh.setDebugMsgTypes(
-            ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE); // all types on
-//    mesh.setDebugMsgTypes( ERROR | STARTUP );  // set before init() so that you can see startup messages
-
-    lightManager = std::shared_ptr<LightManager>(new LightManager(LED_PIN, "light2"));
-    lightManager->init();
-    stateManager.registerDeviceManager(lightManager, "event2");
-    stateManager.registerDeviceManager(lightManager, "event3");
-    stateManager.registerDeviceManager(lightManager, "root");
-    Serial.println("Light manager initialized");
-
-    mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT);
-
 #ifdef ROOT
     Serial.println("ROOT NODE -----");
+    node = new RootNode();
+#else
+    Serial.println("SLAVE NODE -----");
+    node = new SlaveNode();
+#endif
+
+//    mesh.setDebugMsgTypes(
+//            ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE); // all types on
+    mesh.setDebugMsgTypes(
+            ERROR | STARTUP | MESH_STATUS | CONNECTION);  // set before init() so that you can see startup messages
+
+    Serial.println("Light manager initialized");
+    mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT);
+    node->init(&mesh, &userScheduler, &stateManager);
+
+#ifdef ROOT
     mesh.setRoot(true);
-    userScheduler.addTask(taskSendMessage);
-    taskSendMessage.enable();
 #endif
     mesh.setContainsRoot(true);
 

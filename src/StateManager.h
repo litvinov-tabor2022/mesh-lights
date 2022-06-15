@@ -1,5 +1,5 @@
-#ifndef ESPNOW_POC_STATEMANAGER_H
-#define ESPNOW_POC_STATEMANAGER_H
+#ifndef MESH_LIGHTS_STATEMANAGER_H
+#define MESH_LIGHTS_STATEMANAGER_H
 
 #include <map>
 #include <memory>
@@ -11,20 +11,23 @@
 
 class StateManager {
 public:
-    explicit StateManager(std::string deviceName) : deviceName(std::move(deviceName)) {}
+    explicit StateManager(std::string deviceName) : deviceName(std::move(deviceName)) {
+    }
 
     void registerDeviceManager(const std::shared_ptr<AbsDeviceManager> &deviceManager, const String &key) {
         devicesManagers.insert({key, deviceManager});
     }
 
     bool processAction(const Action &action) {
-        auto device = devicesManagers.find(action.device);
-        if (device != devicesManagers.end()) {
+        auto devicePair = devicesManagers.find(action.device);
+        if (devicePair != devicesManagers.end()) {
+            auto device = devicePair->second;
             if (action.state == Action::ON) {
-                devicesManagers.find(action.device)->second->turnOn();
+                device->turnOn();
             } else {
-                devicesManagers.find(action.device)->second->turnOff();
+                device->turnOff();
             }
+            if (action.timeout != Action::WITHOUT_TIMEOUT) device->setTimeout(action.timeout);
             return true;
         } else {
             Serial.printf("Device %s not found\n", action.device.c_str());
@@ -48,4 +51,4 @@ private:
 };
 
 
-#endif //ESPNOW_POC_STATEMANAGER_H
+#endif //MESH_LIGHTS_STATEMANAGER_H
