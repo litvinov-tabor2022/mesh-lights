@@ -1,6 +1,6 @@
 # ESP lights
 
-Prototype of mesh network for wireless controlling lights (or other peripheries) over long distances.
+Mesh network for controlling lights (or other peripheries) wirelessly over long distances.
 
 ## About
 
