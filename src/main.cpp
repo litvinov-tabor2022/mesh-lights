@@ -8,7 +8,9 @@
 #include "nodes/RootNode.h"
 
 #else
+
 #include "nodes/SlaveNode.h"
+
 #endif
 
 #ifndef DEVICE_NAME
@@ -18,6 +20,7 @@
 Node *node;
 StateManager stateManager(DEVICE_NAME);
 Scheduler userScheduler; // to control your personal task
+Scheduler meshScheduler;
 painlessMesh mesh;
 
 // Needed for painless library
@@ -45,7 +48,7 @@ void nodeTimeAdjustedCallback(int32_t offset) {
 
 void setup() {
     Serial.begin(115200);
-
+    userScheduler.init();
 #ifdef ROOT
     Serial.println("ROOT NODE -----");
     node = new RootNode();
@@ -54,14 +57,15 @@ void setup() {
     node = new SlaveNode();
 #endif
 
-//    mesh.setDebugMsgTypes(
-//            ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE); // all types on
+#ifdef ROOT
+    mesh.setDebugMsgTypes(
+            ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE); // all types on
+#else
     mesh.setDebugMsgTypes(
             ERROR | STARTUP | MESH_STATUS | CONNECTION);  // set before init() so that you can see startup messages
-
-    Serial.println("Light manager initialized");
-    mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT);
-    node->init(&mesh, &userScheduler, &stateManager);
+#endif
+    mesh.init(MESH_PREFIX, MESH_PASSWORD, &meshScheduler, MESH_PORT);
+    node->init(&mesh, &userScheduler, &stateManager, LED_PIN);
 
 #ifdef ROOT
     mesh.setRoot(true);
@@ -72,10 +76,11 @@ void setup() {
     mesh.onNewConnection(&newConnectionCallback);
     mesh.onChangedConnections(&changedConnectionCallback);
     mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
-
+    userScheduler.enable();
 }
 
 void loop() {
     // it will run the user scheduler as well
     mesh.update();
+    userScheduler.execute();
 }

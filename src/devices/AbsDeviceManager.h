@@ -9,6 +9,8 @@
 
 class AbsDeviceManager {
 public:
+    virtual bool init() = 0;
+
     void initTimeout(Scheduler *scheduler, unsigned long timeout = 1000) {
         timeouter.set(TASK_MILLISECOND * timeout, TASK_ONCE, [this]() {
             if (onTimeout.has_value())

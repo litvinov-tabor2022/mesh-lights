@@ -17,8 +17,11 @@ public:
         initTimeout(scheduler);
     }
 
-    void init() {
+    bool init() override {
         Serial.println("Initializing Light manager...");
+        ledcAttachPin(outputPin, PWM1_Ch);
+        ledcSetup(PWM1_Ch, PWM1_Freq, PWM1_Res);
+
         this->setOnToggleCallback([this](bool state) {
             if (state) {
                 turnOnLight();
@@ -35,6 +38,41 @@ public:
         this->setOnTimeout([this]() {
             timeoutHandler();
         });
+
+        breathTask.set(TASK_MILLISECOND * 10, TASK_FOREVER, [this]() {
+            if (isBreathing) {
+                if (PWM1_DutyCycle < 125 && !dimming) {
+                    ledcWrite(PWM1_Ch, (PWM1_DutyCycle++) % 125);
+                } else {
+                    dimming = true;
+                }
+                if (PWM1_DutyCycle > 0 && dimming) {
+                    ledcWrite(PWM1_Ch, PWM1_DutyCycle--);
+                } else {
+                    dimming = false;
+                }
+            }
+        });
+        scheduler->addTask(breathTask);
+        breathTask.enable();
+
+
+        candleTask.set(TASK_MILLISECOND * 10, TASK_FOREVER, [this]() {
+            if (isOn) {
+                ledcWrite(PWM1_Ch, random(120) + 135);
+            } else {
+                if (!isBreathing)ledcWrite(PWM1_Ch, 0);
+            }
+            candleTask.enableDelayed(random(250));
+        });
+        scheduler->addTask(candleTask);
+        candleTask.enable();
+
+        return true;
+    }
+
+    void breath(bool state) {
+        isBreathing = state;
     }
 
     String key() override {
@@ -50,12 +88,12 @@ public:
 private:
     void turnOnLight() {
         Serial.println("Light is ON");
-        digitalWrite(outputPin, HIGH);
+        isOn = true;
     }
 
     void turnOffLight() {
         Serial.println("Light is OFF");
-        digitalWrite(outputPin, LOW);
+        isOn = false;
     }
 
     void timeoutHandler() {
@@ -67,6 +105,15 @@ private:
     int outputPin;
     String keyString;
     Scheduler *scheduler;
+    Task breathTask;
+    Task candleTask;
+    bool isBreathing = false;
+    int PWM1_Ch = 0;
+    int PWM1_Res = 8;
+    int PWM1_Freq = 1000;
+    int PWM1_DutyCycle = 0;
+    bool dimming = false;
+    bool isOn = false;
 };
 
 

@@ -12,7 +12,7 @@ public:
                                                                           keyString(std::move(key)),
                                                                           scheduler(scheduler) {}
 
-    void init() {
+    bool init() override {
         Serial.println("Initializing motion sensor manager...");
         pinMode(inputPin, INPUT_PULLUP);
         motionChecker.set(TASK_MILLISECOND * 200, TASK_FOREVER, [this]() {
@@ -20,6 +20,8 @@ public:
         });
         scheduler->addTask(motionChecker);
         motionChecker.enable();
+
+        return true;
     }
 
     String key() override {
@@ -29,8 +31,8 @@ public:
 private:
     void motionHandler() {
         bool sensorState = digitalRead(inputPin);
-        if (this->getState() != sensorState) {
-            this->toggle();
+        if (sensorState == HIGH) {
+            this->turnOn();
         }
     }
 

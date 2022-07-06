@@ -8,18 +8,23 @@ class Node {
 public:
     Node() {}
 
-    virtual bool init(painlessMesh *mesh, Scheduler *scheduler, StateManager *stateManager) {
+    virtual bool init(painlessMesh *mesh, Scheduler *scheduler, StateManager *stateManager, int statusLedPin) {
         this->mesh_ = mesh;
         this->scheduler_ = scheduler;
         this->stateManager_ = stateManager;
+        this->statusLedPin_ = statusLedPin;
         return true;
     }
-
-    virtual void begin() = 0;
 
     painlessMesh *mesh_;
     Scheduler *scheduler_;
     StateManager *stateManager_;
+    int statusLedPin_;
+private:
+    int PWM1_Ch = 0;
+    int PWM1_Res = 8;
+    int PWM1_Freq = 1000;
+    int PWM1_DutyCycle = 0;
 };
 
 

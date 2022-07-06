@@ -10,8 +10,8 @@
 class RootNode : public Node {
 public:
 
-    bool init(painlessMesh *mesh, Scheduler *scheduler, StateManager *stateManager) override {
-        if (!Node::init(mesh, scheduler, stateManager))
+    bool init(painlessMesh *mesh, Scheduler *scheduler, StateManager *stateManager, int statusLedPin) override {
+        if (!Node::init(mesh, scheduler, stateManager, statusLedPin))
             return false;
 
         pinMode(BUTTON_PIN, INPUT_PULLUP);
@@ -22,15 +22,18 @@ public:
         this->motionSensorManager =
                 std::shared_ptr<MotionSensorManager>(new MotionSensorManager(MOTION_SENSOR_PIN, MOTION_KEY, scheduler));
         lightManager->init();
-//        motionSensorManager->init();
+        motionSensorManager->init();
 
-        stateManager_->registerDeviceManager(lightManager, BROADCAST_LIGHT_KEY);
-        stateManager_->registerDeviceManager(lightManager, LIGHT_KEY);
-        stateManager_->registerDeviceManager(motionSensorManager, MOTION_KEY);
 
-//        this->motionSensorManager->setOnStateChange([this](Action::STATE state) {
-//            sendEvent();
-//        });
+
+        stateManager_
+                ->registerDeviceManager(lightManager, BROADCAST_LIGHT_KEY)
+                ->registerDeviceManager(lightManager, LIGHT_KEY)
+                ->registerDeviceManager(motionSensorManager, MOTION_KEY);
+
+        this->motionSensorManager->setOnStateChange([this](Action::STATE state) {
+            sendEvent();
+        });
 
         buttonClickTask.set(TASK_MILLISECOND * 100, TASK_FOREVER, [this]() {
             if (digitalRead(BUTTON_PIN) == LOW) {
@@ -39,14 +42,17 @@ public:
                 mesh_->sendBroadcast(msg);
             }
         });
+
+        statusPrinter.set(TASK_SECOND * 5, TASK_FOREVER, [this]() {
+            Serial.println(mesh_->subConnectionJson());
+        });
+
         scheduler_->addTask(buttonClickTask);
+        scheduler_->addTask(statusPrinter);
+        statusPrinter.enable();
         buttonClickTask.enable();
         return true;
     };
-
-    void begin() override {
-    }
-
 
 private:
     void sendEvent() {
@@ -59,6 +65,7 @@ private:
 
     static const int HEARTBEAT_FREQ = 1000;
     Task buttonClickTask;
+    Task statusPrinter;
     std::shared_ptr<LightManager> lightManager;
     std::shared_ptr<MotionSensorManager> motionSensorManager;
 };
