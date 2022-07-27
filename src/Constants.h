@@ -23,5 +23,6 @@
 #define MESH_PORT               5555
 
 #define BROADCAST_LIGHT_KEY     "BLIGHT"
+#define BROADCAST_AUDIO_KEY     "BAUDIO"
 
 #endif //MESH_LIGHTS_CONSTANTS_H

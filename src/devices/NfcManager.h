@@ -27,7 +27,10 @@ public:
             } else {
                 Debug.println("Tag successfully reloaded");
             }
-            this->turnOn();
+        });
+
+        framework.addOnDisconnectCallback([this] {
+            this->turnOff();
         });
 
         return true;

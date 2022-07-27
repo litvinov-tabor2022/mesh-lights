@@ -11,8 +11,8 @@
 
 class SlaveNode : public Node {
 public:
-    bool init(painlessMesh *mesh, Scheduler *scheduler, StateManager *stateManager, int statusLedPin) override {
-        if (!Node::init(mesh, scheduler, stateManager, statusLedPin))
+    bool init(painlessMesh *mesh, Scheduler *scheduler, NfcManager *nfcManager, StateManager *stateManager, int statusLedPin) override {
+        if (!Node::init(mesh, scheduler, nfcManager, stateManager, statusLedPin))
             return false;
 
         this->lightManager = std::shared_ptr<LightManager>(new LightManager(LED_PIN, LIGHT_KEY, scheduler));
@@ -47,9 +47,6 @@ public:
             } else {
                 lightManager->breath(false);
             }
-        });
-        statusTask.set(TASK_MILLISECOND * 250, TASK_FOREVER, [this]() {
-
         });
 
         this->nfcManager->setOnTurnOnCallback([this]() {

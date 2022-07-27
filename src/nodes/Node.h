@@ -3,22 +3,25 @@
 
 #include "StateManager.h"
 #include "painlessMesh.h"
+#include "devices/NfcManager.h"
 
 class Node {
 public:
     Node() {}
 
-    virtual bool init(painlessMesh *mesh, Scheduler *scheduler, StateManager *stateManager, int statusLedPin) {
+    virtual bool init(painlessMesh *mesh, Scheduler *scheduler, NfcManager *nfcManager, StateManager *stateManager, int statusLedPin) {
         this->mesh_ = mesh;
         this->scheduler_ = scheduler;
         this->stateManager_ = stateManager;
         this->statusLedPin_ = statusLedPin;
+        this->nfcManager = nfcManager;
         return true;
     }
 
     painlessMesh *mesh_;
     Scheduler *scheduler_;
     StateManager *stateManager_;
+    NfcManager *nfcManager;
     int statusLedPin_;
 private:
     int PWM1_Ch = 0;

@@ -21,6 +21,7 @@ Node *node;
 StateManager stateManager(DEVICE_NAME);
 Scheduler userScheduler; // to control your personal task
 Scheduler meshScheduler;
+NfcManager nfcManager(NFC_KEY, &meshScheduler);
 painlessMesh mesh;
 
 // Needed for painless library
@@ -49,6 +50,14 @@ void nodeTimeAdjustedCallback(int32_t offset) {
 void setup() {
     Serial.begin(115200);
     userScheduler.init();
+
+#ifdef NFC
+    if (!nfcManager.init()) {
+        Serial.println("Could not initialize NFC manager!");
+        return;
+    }
+#endif
+
 #ifdef ROOT
     Serial.println("ROOT NODE -----");
     node = new RootNode();
@@ -65,7 +74,7 @@ void setup() {
             ERROR | STARTUP | MESH_STATUS | CONNECTION);  // set before init() so that you can see startup messages
 #endif
     mesh.init(MESH_PREFIX, MESH_PASSWORD, &meshScheduler, MESH_PORT);
-    node->init(&mesh, &userScheduler, &stateManager, LED_PIN);
+    node->init(&mesh, &userScheduler, &nfcManager, &stateManager, LED_PIN);
 
 #ifdef ROOT
     mesh.setRoot(true);

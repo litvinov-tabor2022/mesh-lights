@@ -6,25 +6,25 @@
 #include "Node.h"
 #include "devices/LightManager.h"
 #include "devices/MotionSensorManager.h"
+#include "devices/NfcManager.h"
 
 class RootNode : public Node {
 public:
 
-    bool init(painlessMesh *mesh, Scheduler *scheduler, StateManager *stateManager, int statusLedPin) override {
-        if (!Node::init(mesh, scheduler, stateManager, statusLedPin))
+    bool init(painlessMesh *mesh, Scheduler *scheduler, NfcManager *nfcManager, StateManager *stateManager, int statusLedPin) override {
+        if (!Node::init(mesh, scheduler, nfcManager, stateManager, statusLedPin))
             return false;
 
         pinMode(BUTTON_PIN, INPUT_PULLUP);
         pinMode(LED_PIN, OUTPUT);
         pinMode(MOTION_SENSOR_PIN, INPUT);
 
-        this->lightManager = std::shared_ptr<LightManager>(new LightManager(LED_PIN, LIGHT_KEY, scheduler));
-        this->motionSensorManager =
-                std::shared_ptr<MotionSensorManager>(new MotionSensorManager(MOTION_SENSOR_PIN, MOTION_KEY, scheduler));
+        this->lightManager = std::make_shared<LightManager>(LED_PIN, LIGHT_KEY, scheduler);
+        this->motionSensorManager = std::make_shared<MotionSensorManager>(MOTION_SENSOR_PIN, MOTION_KEY, scheduler);
         lightManager->init();
-        motionSensorManager->init();
 
-
+        // TODO make configurable by build flag
+        // motionSensorManager->init();
 
         stateManager_
                 ->registerDeviceManager(lightManager, BROADCAST_LIGHT_KEY)
@@ -32,7 +32,11 @@ public:
                 ->registerDeviceManager(motionSensorManager, MOTION_KEY);
 
         this->motionSensorManager->setOnStateChange([this](Action::STATE state) {
-            sendEvent();
+            sendBroadcast(motionSensorManager->getAction());
+        });
+
+        this->nfcManager->setOnTurnOnCallback([this] {
+            sendBroadcast(this->nfcManager->getAction());
         });
 
         buttonClickTask.set(TASK_MILLISECOND * 100, TASK_FOREVER, [this]() {
@@ -55,8 +59,7 @@ public:
     };
 
 private:
-    void sendEvent() {
-        auto action = motionSensorManager->getAction();
+    void sendBroadcast(const Action &action) {
         DynamicJsonDocument message(1024);
         String msg;
         serializeJson(action.serialize(), msg);
