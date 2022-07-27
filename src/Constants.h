@@ -3,6 +3,7 @@
 
 // CONFIGURATION
 #define LED_PIN                 27          // depends on device
+#define LED_RING_PIN            14          // depends on device
 #define MOTION_SENSOR_PIN       25          // depends on device
 #define LIGHT_KEY               "LIGHT2"    // depends on device
 #define NFC_KEY                 "NFC2"    // depends on device

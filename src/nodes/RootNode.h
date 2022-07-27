@@ -5,6 +5,7 @@
 #include <utility>
 #include "Node.h"
 #include "devices/LightManager.h"
+#include "devices/LedRingManager.h"
 #include "devices/MotionSensorManager.h"
 #include "devices/NfcManager.h"
 
@@ -37,6 +38,12 @@ public:
 
         this->nfcManager->setOnTurnOnCallback([this] {
             sendBroadcast(this->nfcManager->getAction());
+
+            const PlayerData playerData = this->nfcManager->lastPlayerData();
+
+            String msg = Action(NFC_KEY, Action::STATE::ON, playerData.magic * 1000).serializeToString();
+            Serial.printf("NFC event turns lights on, %s\n", msg.c_str());
+            mesh_->sendBroadcast(msg);
         });
 
         buttonClickTask.set(TASK_MILLISECOND * 100, TASK_FOREVER, [this]() {
@@ -70,6 +77,7 @@ private:
     Task buttonClickTask;
     Task statusPrinter;
     std::shared_ptr<LightManager> lightManager;
+    std::shared_ptr<LedRingManager> ledRingManager;
     std::shared_ptr<MotionSensorManager> motionSensorManager;
 };
 

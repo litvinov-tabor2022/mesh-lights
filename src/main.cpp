@@ -21,7 +21,8 @@ Node *node;
 StateManager stateManager(DEVICE_NAME);
 Scheduler userScheduler; // to control your personal task
 Scheduler meshScheduler;
-NfcManager nfcManager(NFC_KEY, &meshScheduler);
+LedRingManager ledRingManager(LED_RING_PIN, &meshScheduler);
+NfcManager nfcManager(NFC_KEY, &ledRingManager, &meshScheduler);
 painlessMesh mesh;
 
 // Needed for painless library
@@ -56,6 +57,13 @@ void setup() {
         Serial.println("Could not initialize NFC manager!");
         return;
     }
+
+    if (!ledRingManager.init()) {
+        Serial.println("Could not initialize LED ring!");
+        return;
+    }
+
+    ledRingManager.displayOff();
 #endif
 
 #ifdef ROOT

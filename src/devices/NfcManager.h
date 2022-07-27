@@ -7,10 +7,13 @@
 #include "AbsDeviceManager.h"
 #include <painlessMesh.h>
 #include "PortalFramework.h"
+#include "PlayerDataUtils.h"
+#include "LedRingManager.h"
 
 class NfcManager : public AbsDeviceManager {
 public:
-    NfcManager(String key, Scheduler *scheduler) : keyString(std::move(key)), scheduler(scheduler) {}
+    NfcManager(String key, LedRingManager *ledRingManager, Scheduler *scheduler) : keyString(std::move(key)), scheduler(scheduler),
+                                                                                   ledRingManager(ledRingManager) {}
 
     bool init() override {
         Serial.println("Initializing NFC manager...");
@@ -22,8 +25,16 @@ public:
 
         framework.addOnConnectCallback([this](PlayerData playerData, bool isReload) {
             if (!isReload) {
-                this->turnOn();
                 Debug.printf("Connected: player ID %d\n", playerData.user_id);
+
+                if (PlayerDataUtils::hasSkill(portal_Skill_Kouzlo_svetla, playerData)) {
+                    this->playerData = playerData;
+                    Serial.println("Player has required skill, sending the event");
+                    this->turnOn();
+                    this->ledRingManager->countdown(playerData.magic);
+                } else {
+                    Serial.println("Player has NOT required skill, ignoring");
+                }
             } else {
                 Debug.println("Tag successfully reloaded");
             }
@@ -36,6 +47,10 @@ public:
         return true;
     }
 
+    PlayerData lastPlayerData(){
+        return playerData;
+    }
+
     String key() override {
         return keyString;
     }
@@ -43,7 +58,10 @@ public:
 private:
     String keyString;
     Scheduler *scheduler;
+    LedRingManager *ledRingManager;
     PortalFramework framework;
+
+    portal_PlayerData playerData;
 };
 
 
